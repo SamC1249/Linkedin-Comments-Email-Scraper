@@ -127,6 +127,9 @@ The tool will:
    - Increase `--wait-time` parameter
    - Check your internet connection
    - LinkedIn might be slow to respond
+     
+5. **It looks like you aren't entering a password**
+   - This is purposeful. The program is recording your key strokes but your cursor won't move.
 
 ### Debug Mode
 
@@ -169,6 +172,3 @@ Feel free to submit issues, fork the repository, and create pull requests for an
 This project is for educational purposes. Use responsibly and at your own risk.
 
 ---
-
-**Remember**: With great scraping power comes great responsibility! 🚀😄
-
