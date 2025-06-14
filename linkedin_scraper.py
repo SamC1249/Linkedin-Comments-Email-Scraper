@@ -132,30 +132,59 @@ class LinkedInCommentsScraper:
     
     def load_all_comments(self) -> None:
         """
-        Load all comments by clicking 'Show more comments' buttons
+        Load all comments by clicking 'Show more comments' buttons and scrolling
         """
+        last_height = 0
+        retries = 3  # Number of retries when no new content is loaded
+        attempts = 0
+        
         try:
-            while True:
-                # Look for "Show more comments" or similar buttons
-                show_more_buttons = self.driver.find_elements(
-                    By.XPATH, 
-                    "//button[contains(text(), 'Show more') or contains(text(), 'more comments') or contains(@aria-label, 'more comments')]"
-                )
+            while attempts < retries:
+                # Scroll down to load more comments
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)  # Wait for any lazy-loaded content
                 
-                if not show_more_buttons:
-                    break
+                # Check if we've reached the bottom
+                new_height = self.driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height:
+                    attempts += 1
+                    continue
                     
-                # Click the first available button
-                try:
-                    show_more_buttons[0].click()
-                    time.sleep(2)  # Wait for comments to load
-                except Exception as e:
-                    print(f"Could not click show more button: {e}")
-                    break
-                    
+                last_height = new_height
+                attempts = 0  # Reset attempts if we found new content
+                
+                # Look for "Show more comments" or similar buttons
+                show_more_selectors = [
+                    "button[aria-label*='more comments']",
+                    "button:contains('Show more comments')",
+                    "button:contains('Show previous comments')",
+                    "button.comments-comments-list__load-more-comments-button",
+                    "button.comments-comments-list__load-more-comments",
+                    "button.comments-comments-list__load-more-replies",
+                    "button.comments-comment-social-bar__replies-count",
+                    "button.comments-comment-social-bar__replies-count--multiple",
+                    "button.comments-comment-social-bar__replies-count--single"
+                ]
+                
+                for selector in show_more_selectors:
+                    try:
+                        buttons = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                        for btn in buttons:
+                            try:
+                                if btn.is_displayed():
+                                    self.driver.execute_script("arguments[0].click();", btn)
+                                    time.sleep(1)  # Wait for comments to load
+                            except Exception:
+                                continue
+                    except Exception:
+                        continue
+                        
         except Exception as e:
-            print(f"Error loading comments: {e}")
-    
+            print(f"Error in load_all_comments: {e}")
+                        
+        except Exception as e:
+            print(f"Error in load_all_comments: {e}")
+
     def scrape_comments(self, post_url: str) -> Set[str]:
         """
         Scrape comments from a LinkedIn post and extract emails
@@ -251,15 +280,19 @@ class LinkedInCommentsScraper:
             print(f"Error saving emails to file: {e}")
     
     def close(self):
-        """Close the web driver"""
+        """Close the web driver and clean up resources"""
         if self.driver:
             self.driver.quit()
+            self.driver = None
     
     def __enter__(self):
+        """Enter the runtime context related to this object."""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the runtime context and perform cleanup."""
         self.close()
+        return False  # Don't suppress any exceptions
 
 
 def main():
